@@ -66,6 +66,8 @@ When a user uploads a photo or captures a live webcam feed on the `IDENTIFY FACE
 Without a threshold, a face recognition model will mathematically always find a "closest match"—even if the person is a total stranger. The UNKNOWN rejection mechanism is a critical security feature. The calibrated threshold (0.45) ensures that the system firmly rejects faces that are too far from the enrolled mathematical clusters, preventing unauthorized access.
 
 ## 9. Evaluation
+👉 **Read the full Evaluation and Calibration Report here: [EVALUATION.md](EVALUATION.md)**
+
 The assignment requires basic evaluation results. Due to the scope of this prototype, we ran a targeted local evaluation directly on the provided demo dataset rather than downloading massive external databases (like LFW). 
 
 - **Evaluation Methodology:** A standalone script (`evaluation/evaluate.py`) computes cosine similarities for a matrix of local test images.
