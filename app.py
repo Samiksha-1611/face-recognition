@@ -82,13 +82,122 @@ st.markdown("""
         border: 1px solid rgba(0,255,200,0.4); color: #d6f5ec; border-radius: 8px;
         transition: 0.2s;
     }
-    .stButton>button:hover {
-        border-color: #00ffc8; box-shadow: 0 0 14px rgba(0,255,200,0.4); color: #ffffff;
+    /* Metric info box (replaces default st.info blue) */
+    .metric-info-box {
+        border: 1px solid rgba(0,255,200,0.25); background: rgba(0,255,200,0.05);
+        border-radius: 10px; padding: 18px 22px; color: #d6f5ec; font-size: 14px;
+        line-height: 1.6; margin-bottom: 4px;
+    }
+    .metric-info-box b { color: #00ffc8; }
+
+    /* Dark-themed dataframe/table container (border only — do not touch internals,
+       Streamlit's dataframe renders on an internal canvas that CSS color overrides break) */
+    [data-testid="stDataFrame"] {
+        border: 1px solid rgba(0,255,200,0.2) !important;
+        border-radius: 10px !important;
+    }
+
+    /* Intro feature cards (rendered as buttons) */
+    .intro-subtitle {
+        color: #9adfd0; font-size: 14px; line-height: 1.6; margin: 6px 0 22px 0; max-width: 780px;
+    }
+    div[data-testid="column"] .stButton>button {
+        height: 64px; font-size: 15px; font-weight: 700;
+        background: rgba(0,255,200,0.03); border: 1px solid rgba(0,255,200,0.2);
+    }
+    .feature-desc { color: #8fa89f; font-size: 12px; line-height: 1.4; }
+
+    /* Biometric Scanner Animation */
+    .scanner-container {
+        position: relative;
+        display: inline-block;
+        overflow: hidden;
+        border: 1px solid rgba(0,255,200,0.5);
+        border-radius: 8px;
+        box-shadow: 0 0 15px rgba(0,255,200,0.15);
+        width: 100%;
+    }
+    .scanner-container img {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+    .scanner-line {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 3px;
+        background: #00ffc8;
+        box-shadow: 0 0 10px #00ffc8, 0 0 20px #00ffc8;
+        animation: scan 2s infinite linear;
+    }
+    .scanner-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to bottom, rgba(0,255,200,0) 0%, rgba(0,255,200,0.1) 50%, rgba(0,255,200,0) 100%);
+        animation: scan-glow 2s infinite linear;
+    }
+    @keyframes scan {
+        0% { top: -5%; }
+        50% { top: 105%; }
+        100% { top: -5%; }
+    }
+    @keyframes scan-glow {
+        0% { top: -50%; }
+        50% { top: 50%; }
+        100% { top: -50%; }
+    }
+    .scanner-label {
+        position: absolute;
+        bottom: 10px;
+        left: 10px;
+        color: #00ffc8;
+        font-size: 13px;
+        font-weight: bold;
+        text-shadow: 0 0 5px #00ffc8;
+        background: rgba(0,0,0,0.6);
+        padding: 4px 8px;
+        border-radius: 4px;
+        animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+        0% { opacity: 0.7; }
+        100% { opacity: 1; }
+    }
+    
+    .system-status-list {
+        font-family: 'JetBrains Mono', monospace;
+        color: #8fa89f;
+        font-size: 14px;
+        line-height: 1.8;
+    }
+    .system-status-list b { color: #00ffc8; }
+    
+    /* Camera constraint */
+    [data-testid="stCameraInput"] {
+        max-width: 500px !important;
+        margin: 0 auto;
+        border: 1px solid rgba(0,255,200,0.4);
+        border-radius: 8px;
+        padding: 5px;
+        background: rgba(0,255,200,0.03);
     }
     </style>
 """, unsafe_allow_html=True)
 
 # ----------------- Shared state -----------------
+import base64
+from io import BytesIO
+
+def get_image_base64(img: Image.Image):
+    buffered = BytesIO()
+    img.save(buffered, format="JPEG")
+    return base64.b64encode(buffered.getvalue()).decode()
+
 if "db_stats" not in st.session_state:
     st.session_state.db_stats = get_database_stats()
 
@@ -111,29 +220,86 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 st.markdown("# FACE RECOGNITION IDENTIFICATION SYSTEM")
+st.markdown("""
+<p class="intro-subtitle">
+Enroll identities and identify faces using AI-powered biometric matching.
+</p>
+""", unsafe_allow_html=True)
 
-tab_identify, tab_enroll, tab_db, tab_eval = st.tabs(["Identify", "Enroll", "Database", "Evaluation"])
+if "active_section" not in st.session_state:
+    st.session_state.active_section = "Identify"
+
+intro_cols = st.columns(3)
+cards = [
+    ("ENROLL PERSON", "Register a new identity.", "material/person_add", "Enroll"),
+    ("IDENTIFY FACE", "Check a photo against everyone enrolled.", "material/search", "Identify"),
+    ("DATABASE", "View enrolled identities.", "material/grid_view", "Database"),
+]
+for col, (title, desc, icon, section) in zip(intro_cols, cards):
+    with col:
+        if st.button(title, key=f"card_{section}", icon=f":{icon}:", width="stretch"):
+            st.session_state.active_section = section
+        st.markdown(f'<p class="feature-desc" style="text-align:center; margin-top:-6px;">{desc}</p>', unsafe_allow_html=True)
+
+active = st.session_state.active_section
+st.markdown("###")
 
 # ----------------- Identify -----------------
-with tab_identify:
-    st.markdown("Upload an image containing a face to identify the person against the enrolled database.")
+if active == "Identify":
+    st.markdown("### FACE IDENTIFIER")
+    st.markdown("────────────────────────")
 
     threshold = st.slider("Similarity Threshold", min_value=0.0, max_value=1.0, value=DEFAULT_THRESHOLD, step=0.01)
-    uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"], key="identify_upload")
+    
+    input_type = st.radio("Select Input Method", ["UPLOAD IMAGE", "LIVE CAMERA"], horizontal=True, label_visibility="collapsed")
+    
+    uploaded_file = None
+    if input_type == "UPLOAD IMAGE":
+        st.markdown("<p style='font-size:14px; color:#8fa89f;'>Upload a photo for identification</p>", unsafe_allow_html=True)
+        uploaded_file = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"], key="identify_upload", label_visibility="collapsed")
+    else:
+        st.markdown("<p style='font-size:14px; color:#8fa89f;'>Scan a face using your webcam</p>", unsafe_allow_html=True)
+        uploaded_file = st.camera_input("Take a picture", label_visibility="collapsed")
 
     if uploaded_file is not None:
         image = Image.open(uploaded_file).convert('RGB')
         col_img, col_result = st.columns([1, 1.4])
+        
         with col_img:
-            st.image(image, caption="Uploaded Image", width='stretch')
+            img_container = st.empty()
+            img_container.image(image, caption="Uploaded Image", width='stretch')
 
         with col_result:
-            if st.button("Run Identification", key="run_id"):
-                with st.spinner("Analyzing..."):
+            st.markdown("### SYSTEM STATUS")
+            st.markdown("""<div class="system-status-list">
+                ● FACE DETECTION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>READY</b><br>
+                ● EMBEDDING ENGINE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>READY</b><br>
+                ● DATABASE &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>READY</b><br>
+                ● IDENTIFICATION &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>READY</b>
+            </div>""", unsafe_allow_html=True)
+            
+            st.markdown("###")
+            if st.button("SCAN / ANALYZE FACE", key="run_id", use_container_width=True):
+                # Replace image with scanner
+                b64 = get_image_base64(image)
+                img_container.markdown(f'''
+                <div class="scanner-container">
+                    <img src="data:image/jpeg;base64,{b64}" />
+                    <div class="scanner-line"></div>
+                    <div class="scanner-overlay"></div>
+                    <div class="scanner-label">SCANNING...</div>
+                </div>
+                ''', unsafe_allow_html=True)
+                
+                with st.spinner("Analyzing biometric markers..."):
                     img_array = np.array(image)
                     img_bgr = img_array[..., ::-1]  # RGB to BGR
                     result = identify_face(img_bgr, threshold=threshold)
-
+                    
+                    # Restore image
+                    img_container.empty()
+                    img_container.image(image, caption="Analyzed Image", width='stretch')
+                    
                     if result["status"] == "matched":
                         st.markdown(f"""
                         <div class="result-matched">
@@ -147,51 +313,76 @@ with tab_identify:
                     elif result["status"] == "unknown":
                         st.markdown(f"""
                         <div class="result-unknown">
-                            <p class='verdict-unknown'>UNKNOWN PERSON</p>
-                            <p><b>Best Candidate:</b> {result.get('identity', 'N/A')}</p>
+                            <p class='verdict-unknown'>UNKNOWN FACE</p>
+                            <p style='margin-bottom:12px;'>No enrolled identity matched this face.</p>
                             <p><b>Similarity:</b> {result['similarity']:.4f}</p>
                             <p><b>Threshold:</b> {result['threshold']:.4f}</p>
                             <p><b>Decision:</b> REJECTED</p>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
-                        st.error(f"Error: {result.get('message', 'Unknown error occurred.')}")
+                        st.markdown(f"""
+                        <div class="result-unknown">
+                            <p class='verdict-unknown'>FACE NOT DETECTED</p>
+                            <p>Please capture or upload an image containing a clear face.</p>
+                            <p>Error: {result.get('message', 'Unknown error')}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
 
 # ----------------- Enroll -----------------
-with tab_enroll:
-    st.markdown("Upload 2–3 clear images of the same person to add them to the system.")
+elif active == "Enroll":
+    st.markdown("### ENROLL NEW IDENTITY")
+    st.markdown("────────────────────────")
 
-    person_name = st.text_input("Person Name")
+    person_name = st.text_input("IDENTITY NAME")
     uploaded_files = st.file_uploader(
-        "Upload images for enrollment", type=["jpg", "jpeg", "png"],
+        "FACE SAMPLES (Upload 2–3 images)", type=["jpg", "jpeg", "png"],
         accept_multiple_files=True, key="enroll_upload"
     )
+    
+    st.markdown("### SYSTEM CHECK")
+    st.markdown("""<div class="system-status-list">
+        ● Face detection &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>READY</b><br>
+        ● Embedding generation &nbsp; <b>READY</b><br>
+        ● Database storage &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>READY</b>
+    </div>""", unsafe_allow_html=True)
+    st.markdown("###")
 
-    if st.button("Enroll Person", key="enroll_btn"):
+    if st.button("ENROLL PERSON", key="enroll_btn", use_container_width=True):
         if not person_name:
             st.error("Please enter a name.")
         elif not uploaded_files:
             st.error("Please upload at least one image.")
         else:
             success_count = 0
-            for file in uploaded_files:
-                image = Image.open(file).convert('RGB')
-                img_array = np.array(image)
-                img_bgr = img_array[..., ::-1]
-
-                result = process_and_enroll_image(person_name, img_bgr)
-                if result["success"]:
-                    success_count += 1
-                else:
-                    st.error(f"{file.name} — Rejected: {result['message']}")
+            with st.spinner("Processing face embeddings..."):
+                for file in uploaded_files:
+                    image = Image.open(file).convert('RGB')
+                    img_array = np.array(image)
+                    img_bgr = img_array[..., ::-1]
+    
+                    result = process_and_enroll_image(person_name, img_bgr)
+                    if result["success"]:
+                        success_count += 1
+                    else:
+                        st.error(f"{file.name} — Rejected: {result['message']}")
 
             if success_count > 0:
-                st.success(f"Enrolled {success_count} image(s) for {person_name}")
                 refresh_stats()
-                st.rerun()
+                st.markdown(f"""
+                <div class="result-matched">
+                    <p class='verdict-matched'>IDENTITY REGISTERED</p>
+                    <p><b>Name:</b> {person_name}</p>
+                    <p><b>Images processed:</b> {success_count}</p>
+                    <p><b>Embeddings stored:</b> {success_count}</p>
+                </div>
+                """, unsafe_allow_html=True)
 
 # ----------------- Database -----------------
-with tab_db:
+elif active == "Database":
+    st.markdown("### ENROLLED IDENTITIES")
+    st.markdown("────────────────────────")
+    
     stats = st.session_state.db_stats
     col1, col2 = st.columns(2)
     with col1:
@@ -203,39 +394,10 @@ with tab_db:
 
     db = load_database()
     if not db:
-        st.info("Database is empty.")
+        st.markdown('<div class="metric-info-box">Database is empty.</div>', unsafe_allow_html=True)
     else:
         table_data = [
             {"Name": name, "Number of Images": len(data.get("embeddings", []))}
             for name, data in db.items()
         ]
         st.dataframe(pd.DataFrame(table_data), width='stretch')
-
-# ----------------- Evaluation -----------------
-with tab_eval:
-    st.info(f"**Current Application Threshold:** {DEFAULT_THRESHOLD}  \n"
-            f"Calibrated using enrollment and out-of-sample test images.")
-
-    st.markdown("---")
-    st.subheader("External Evaluation (LFW)")
-
-    metrics_file = os.path.join(EVAL_DIR, "metrics.json")
-    plot_file = os.path.join(EVAL_DIR, "similarity_distribution.png")
-
-    if os.path.exists(metrics_file) and os.path.exists(plot_file):
-        with open(metrics_file, 'r') as f:
-            metrics = json.load(f)
-
-        c1, c2, c3 = st.columns(3)
-        c1.markdown(f"<div class='stat-card'><h3>{metrics['total_pairs_evaluated']}</h3><p>PAIRS EVALUATED</p></div>", unsafe_allow_html=True)
-        c2.markdown(f"<div class='stat-card'><h3>{metrics['best_threshold']:.2f}</h3><p>RECOMMENDED THRESHOLD</p></div>", unsafe_allow_html=True)
-        c3.markdown(f"<div class='stat-card'><h3>{metrics['best_f1']:.3f}</h3><p>BEST F1 SCORE</p></div>", unsafe_allow_html=True)
-
-        st.markdown("###")
-        st.image(plot_file, caption="Genuine vs Impostor Cosine Similarity Distribution")
-
-        st.subheader("Metrics by Threshold")
-        df_metrics = pd.DataFrame(metrics["metrics_by_threshold"])
-        st.dataframe(df_metrics.style.highlight_max(subset=['f1'], color='#0d3d33'), width='stretch')
-    else:
-        st.warning("No external evaluation results found.")
