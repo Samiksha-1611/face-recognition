@@ -5,6 +5,9 @@ import os
 from PIL import Image
 import numpy as np
 
+# Force TensorFlow to use legacy Keras for RetinaFace/DeepFace compatibility
+os.environ['TF_USE_LEGACY_KERAS'] = '1'
+
 # Set up page configuration first
 st.set_page_config(page_title="Face Recognition ID System", layout="wide", initial_sidebar_state="collapsed")
 
