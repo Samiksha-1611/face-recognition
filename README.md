@@ -1,5 +1,9 @@
 # Face Recognition Identification System
 
+## 🔴 Live Deployment
+You can access the live working prototype hosted on Streamlit Community Cloud here:
+👉 **[Launch Application](https://face-recognition-njq655zppft7ku2pgehzny.streamlit.app)**
+
 ## 1. Project Overview
 This project is a complete local Face Recognition Identification System developed for an internship assignment. The system allows users to enroll known individuals using face images, securely generates and stores biometric face embeddings, and can identify new query faces in real-time. If a scanned face does not match any enrolled identity above a strict confidence threshold, the system securely rejects it as `UNKNOWN`.
 
